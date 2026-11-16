@@ -41,7 +41,7 @@
 html,body{margin:0}
 body::before{content:"";position:fixed;left:0;right:0;top:0;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:10}
 body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:14px;line-height:1.4;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-top:calc(12px + env(safe-area-inset-top,0px));padding-bottom:100px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-top:calc(22px + env(safe-area-inset-top,0px));padding-bottom:100px;
   -webkit-tap-highlight-color:transparent}
 .wrap{max-width:520px;margin:0 auto;display:grid;gap:10px}
 header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -52,10 +52,14 @@ h1 small{font-family:var(--font-mono);font-size:12px;color:var(--muted);font-wei
 .dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:10px}
 .label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
-.seg{display:flex;flex-wrap:wrap;gap:6px}
-.seg button,.btn{flex:1 1 auto;min-width:48px;min-height:42px;padding:6px 8px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--fg);font:inherit;font-size:14px;cursor:pointer}
+.seg{display:grid;grid-template-columns:repeat(var(--cols,2),minmax(0,1fr));gap:6px}
+#presets{--cols:5} #segWave{--cols:4} #swPresets{--cols:3} #segNoise{--cols:3} #lpPresets{--cols:5}
+#seqF{--cols:4} #seqL{--cols:6} #ampPresets{--cols:7} #segCh{--cols:4}
+.seg button small{display:block;font-size:11px;font-weight:400;opacity:.85;line-height:1.2}
+.seg button,.btn{min-width:0;min-height:44px;padding:6px 4px;line-height:1.2;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--fg);font:inherit;font-size:14px;cursor:pointer}
 .seg{--sel:var(--accent)}
 .seg button[aria-pressed="true"]{background:var(--sel);color:var(--sel-fg);border-color:var(--sel);font-weight:600}
+.seg.mono button{font-size:13px}
 #segWave{--sel:var(--c-wave)} #segSwM,#segSwR,#swPresets{--sel:var(--c-sweep)} #segNoise{--sel:var(--c-noise)} #lpPresets{--sel:var(--c-lp)}
 #seqF,#seqL,#segSeqO{--sel:var(--c-seq)} #segCh{--sel:var(--c-ch)} #segPh{--sel:var(--c-ph)} #segBurst{--sel:var(--c-burst)} #segFade{--sel:var(--c-fade)}
 .tabs button[data-tab="tone"][aria-selected="true"]{background:var(--c-wave);color:var(--sel-fg)}
@@ -161,20 +165,18 @@ footer{font-family:var(--font-mono);font-size:11px;color:var(--muted);display:fl
         <button type="button" data-f="20">20</button><button type="button" data-f="30">30</button><button type="button" data-f="40">40</button><button type="button" data-f="50">50</button><button type="button" data-f="60">60</button><button type="button" data-f="80">80</button><button type="button" data-f="100">100</button><button type="button" data-f="120">120</button><button type="button" data-f="1000">1k</button><button type="button" data-f="10000">10k</button>
       </div>
     </div>
-    <div class="two">
-      <div class="field">
-        <span class="label">Eingabe Hz</span>
-        <input type="number" id="nFreq" min="1" max="22000" step="0.1" value="50" aria-label="Frequenz in Hz">
+    <div class="field">
+      <span class="label"><i style="--sel:var(--c-wave)"></i>Signalform</span>
+      <div class="seg" id="segWave">
+        <button data-v="sine" aria-pressed="true">Sinus</button>
+        <button data-v="square" aria-pressed="false">Rechteck</button>
+        <button data-v="triangle" aria-pressed="false">Dreieck</button>
+        <button data-v="sawtooth" aria-pressed="false">Sägezahn</button>
       </div>
-      <div class="field">
-        <span class="label"><i style="--sel:var(--c-wave)"></i>Signalform</span>
-        <div class="seg" id="segWave">
-          <button data-v="sine" aria-pressed="true">Sinus</button>
-          <button data-v="square" aria-pressed="false">Rechteck</button>
-          <button data-v="triangle" aria-pressed="false">Dreieck</button>
-          <button data-v="sawtooth" aria-pressed="false">Sägezahn</button>
-        </div>
-      </div>
+    </div>
+    <div class="field">
+      <span class="label">Frequenz direkt eingeben Hz</span>
+      <input type="number" id="nFreq" min="1" max="22000" step="0.1" value="50" aria-label="Frequenz in Hz">
     </div>
   </div>
 
@@ -183,9 +185,9 @@ footer{font-family:var(--font-mono);font-size:11px;color:var(--muted);display:fl
     <div class="field">
       <span class="label"><i style="--sel:var(--c-sweep)"></i>Bereich</span>
       <div class="seg" id="swPresets">
-        <button type="button" data-a="20" data-b="200">Subwoofer 20–200</button>
-        <button type="button" data-a="20" data-b="20000">Vollbereich 20–20k</button>
-        <button type="button" data-a="200" data-b="5000">Mitten 200–5k</button>
+        <button type="button" data-a="20" data-b="200">Subwoofer<small>20–200 Hz</small></button>
+        <button type="button" data-a="20" data-b="20000">Vollbereich<small>20 Hz–20 kHz</small></button>
+        <button type="button" data-a="200" data-b="5000">Mitten<small>200 Hz–5 kHz</small></button>
       </div>
     </div>
     <div class="three">
@@ -195,7 +197,7 @@ footer{font-family:var(--font-mono);font-size:11px;color:var(--muted);display:fl
     </div>
     <div class="two">
       <div class="field"><span class="label"><i style="--sel:var(--c-sweep)"></i>Verlauf</span>
-        <div class="seg" id="segSwM"><button data-v="log" aria-pressed="true">Logarithmisch</button><button data-v="lin" aria-pressed="false">Linear</button></div></div>
+        <div class="seg" id="segSwM"><button data-v="log" aria-pressed="true">Log.</button><button data-v="lin" aria-pressed="false">Linear</button></div></div>
       <div class="field"><span class="label"><i style="--sel:var(--c-sweep)"></i>Wiederholen</span>
         <div class="seg" id="segSwR"><button data-v="loop" aria-pressed="true">Endlos</button><button data-v="once" aria-pressed="false">Einmal</button></div></div>
     </div>
@@ -213,9 +215,9 @@ footer{font-family:var(--font-mono);font-size:11px;color:var(--muted);display:fl
       </div>
     </div>
     <div class="field">
-      <div class="top"><span class="label"><i style="--sel:var(--c-lp)"></i>Tiefpass</span><span class="val" id="vLp">aus</span></div>
+      <div class="top"><span class="label"><i style="--sel:var(--c-lp)"></i>Tiefpass Hz</span><span class="val" id="vLp">aus</span></div>
       <div class="seg mono" id="lpPresets">
-        <button type="button" data-lp="0">Aus</button><button type="button" data-lp="80">80 Hz</button><button type="button" data-lp="120">120 Hz</button><button type="button" data-lp="200">200 Hz</button><button type="button" data-lp="500">500 Hz</button>
+        <button type="button" data-lp="0">Aus</button><button type="button" data-lp="80">80</button><button type="button" data-lp="120">120</button><button type="button" data-lp="200">200</button><button type="button" data-lp="500">500</button>
       </div>
     </div>
     <p class="hint">Rosa Rauschen hat gleiche Energie pro Oktave und entspricht dem Spektrum typischer Musik. Mit Tiefpass 80 oder 120 Hz eignet es sich für Subwoofer.</p>
@@ -265,22 +267,20 @@ footer{font-family:var(--font-mono);font-size:11px;color:var(--muted);display:fl
     <details id="adv">
       <summary><span>Kanal, Phase, Burst, Auto-Stopp</span><span class="summ" id="advSumm"></span></summary>
       <div class="adv">
-    <div class="two">
-      <div class="field"><span class="label"><i style="--sel:var(--c-ch)"></i>Kanal</span>
-        <div class="seg" id="segCh"><button data-v="both" aria-pressed="true">L+R</button><button data-v="left" aria-pressed="false">Links</button><button data-v="right" aria-pressed="false">Rechts</button><button data-v="alt" aria-pressed="false">L/R wechselnd</button></div></div>
-      <div class="field"><span class="label"><i style="--sel:var(--c-ph)"></i>Phase rechts</span>
-        <div class="seg" id="segPh"><button data-v="0" aria-pressed="true">Normal</button><button data-v="1" aria-pressed="false">Invertiert</button></div></div>
-    </div>
+    <div class="field"><span class="label"><i style="--sel:var(--c-ch)"></i>Kanal</span>
+      <div class="seg" id="segCh"><button data-v="both" aria-pressed="true">L+R</button><button data-v="left" aria-pressed="false">Links</button><button data-v="right" aria-pressed="false">Rechts</button><button data-v="alt" aria-pressed="false">Wechsel<small>L/R je 1 s</small></button></div></div>
+    <div class="field"><span class="label"><i style="--sel:var(--c-ph)"></i>Phase rechter Kanal</span>
+      <div class="seg" id="segPh"><button data-v="0" aria-pressed="true">Normal</button><button data-v="1" aria-pressed="false">Invertiert<small>Polaritätstest</small></button></div></div>
     <div class="field">
       <span class="label"><i style="--sel:var(--c-burst)"></i>Burst</span>
-      <div class="seg" id="segBurst"><button data-v="off" aria-pressed="true">Aus</button><button data-v="on" aria-pressed="false">An</button></div>
+      <div class="seg" id="segBurst"><button data-v="off" aria-pressed="true">Aus</button><button data-v="on" aria-pressed="false">An<small>Ton an/aus im Takt</small></button></div>
       <div class="two" id="burstFields" hidden>
         <div class="field"><span class="label">An ms</span><input type="number" id="nBOn" min="10" max="10000" value="500" aria-label="Burst an"></div>
         <div class="field"><span class="label">Aus ms</span><input type="number" id="nBOff" min="10" max="10000" value="500" aria-label="Burst aus"></div>
       </div>
     </div>
     <div class="two">
-      <div class="field"><span class="label">Auto-Stopp s (0 = endlos)</span><input type="number" id="nStop" min="0" max="3600" step="1" value="0" aria-label="Auto-Stopp"></div>
+      <div class="field"><span class="label">Auto-Stopp nach s (0 = aus)</span><input type="number" id="nStop" min="0" max="3600" step="1" value="0" aria-label="Auto-Stopp"></div>
       <div class="field"><span class="label"><i style="--sel:var(--c-fade)"></i>Ein-/Ausblenden</span>
         <div class="seg" id="segFade"><button data-v="1" aria-pressed="true">20 ms</button><button data-v="0" aria-pressed="false">Aus</button></div></div>
     </div>
@@ -301,7 +301,7 @@ footer{font-family:var(--font-mono);font-size:11px;color:var(--muted);display:fl
 
 <script>
 (function(){
-  const VERSION='1.2.2', BUILD='2026-11-16';
+  const VERSION='1.3.0', BUILD='2026-11-16';
   const $=id=>document.getElementById(id);
   $('ver').textContent='v'+VERSION;$('verFoot').textContent='Signalgenerator v'+VERSION+' · '+BUILD;
 
