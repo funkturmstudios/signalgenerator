@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Signalgenerator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one-column instrument panel, scope on top, controls stacked, big transport button at the bottom. Dark-first like a lab instrument. */
+:root{
+  --bg:#0f1316; --panel:#171d22; --panel2:#1f272e; --line:#2c3740;
+  --fg:#e6ecef; --muted:#8c9aa6; --accent:#f0b429; --accent-fg:#1a1200;
+  --ok:#3ecf8e; --warn:#ff6b57;
+  --font-head:"Space Grotesk",system-ui,sans-serif;
+  --font-body:"Inter",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#f2f4f5; --panel:#ffffff; --panel2:#e9edf0; --line:#cfd7dd;
+    --fg:#161c21; --muted:#5d6b76; --accent:#c98a00; --accent-fg:#fff8e6;
+    --ok:#1f9d64; --warn:#d23f2a; color-scheme:light;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#f2f4f5; --panel:#ffffff; --panel2:#e9edf0; --line:#cfd7dd;
+  --fg:#161c21; --muted:#5d6b76; --accent:#c98a00; --accent-fg:#fff8e6;
+  --ok:#1f9d64; --warn:#d23f2a; color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 32px}
+.wrap{max-width:560px;margin:0 auto;display:grid;gap:14px}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--font-head);font-weight:600;font-size:22px;margin:0;letter-spacing:-.01em}
+.state{font-family:var(--font-mono);font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--line)}
+.dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:12px}
+.label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{flex:1 1 auto;min-width:64px;padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--fg);font:inherit;font-size:14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:600}
+.seg button:focus-visible,input:focus-visible,.big:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.field{display:grid;gap:6px;min-width:0}
+.field .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.val{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:15px}
+.val small{color:var(--muted);font-size:12px}
+input[type=range]{width:100%;accent-color:var(--accent);margin:0}
+input[type=number]{width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--fg);font-family:var(--font-mono);font-size:15px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:380px){.two{grid-template-columns:1fr}}
+canvas{width:100%;height:110px;display:block;background:var(--panel2);border-radius:8px;border:1px solid var(--line)}
+.big{width:100%;padding:16px;border-radius:12px;border:none;background:var(--accent);color:var(--accent-fg);font-family:var(--font-head);font-weight:600;font-size:18px;cursor:pointer}
+.big.on{background:var(--warn);color:#fff}
+.hint{font-size:13px;color:var(--muted);margin:0}
+.readout{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.readout div{background:var(--panel2);border-radius:8px;padding:8px 10px;min-width:0}
+.readout .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.readout .v{font-family:var(--font-mono);font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chk{display:flex;align-items:center;gap:8px;font-size:14px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>Signalgenerator</h1>
+    <div class="state"><span class="dot" id="dot"></span><span id="stateTxt">bereit</span></div>
+  </header>
+
+  <div class="panel">
+    <canvas id="scope" width="520" height="110"></canvas>
+    <div class="readout">
+      <div><div class="k">Pegel</div><div class="v" id="rLevel">-10.0 dBFS</div></div>
+      <div><div class="k">Linear</div><div class="v" id="rLin">0.316</div></div>
+      <div><div class="k">Laufzeit</div><div class="v" id="rTime">0:00</div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="label">Signal</div>
+    <div class="seg" id="segSig">
+      <button data-v="sine" aria-pressed="true">Sinus</button>
+      <button data-v="square" aria-pressed="false">Rechteck</button>
+      <button data-v="triangle" aria-pressed="false">Dreieck</button>
+      <button data-v="sawtooth" aria-pressed="false">Sägezahn</button>
+      <button data-v="sweep" aria-pressed="false">Sweep</button>
+      <button data-v="white" aria-pressed="false">Weiß</button>
+      <button data-v="pink" aria-pressed="false">Rosa</button>
+      <button data-v="brown" aria-pressed="false">Braun</button>
+    </div>
+
+    <div class="field" id="fFreq">
+      <div class="top"><span class="label">Frequenz</span><span class="val" id="vFreq">50 <small>Hz</small></span></div>
+      <input type="range" id="sFreq" min="0" max="1000" value="283" step="1">
+      <div class="two">
+        <input type="number" id="nFreq" min="1" max="22000" step="0.1" value="50" aria-label="Frequenz in Hz">
+        <div class="seg" id="presets">
+          <button type="button" data-f="30">30</button><button type="button" data-f="50">50</button><button type="button" data-f="80">80</button><button type="button" data-f="1000">1k</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="two" id="fSweep" hidden>
+      <div class="field">
+        <span class="label">Start Hz</span>
+        <input type="number" id="nSwA" min="1" max="22000" value="20" aria-label="Startfrequenz">
+      </div>
+      <div class="field">
+        <span class="label">Ende Hz</span>
+        <input type="number" id="nSwB" min="1" max="22000" value="200" aria-label="Endfrequenz">
+      </div>
+      <div class="field">
+        <span class="label">Dauer s</span>
+        <input type="number" id="nSwD" min="0.5" max="120" step="0.5" value="10" aria-label="Sweepdauer">
+      </div>
+      <div class="field">
+        <span class="label">Verlauf</span>
+        <div class="seg" id="segSwM">
+          <button data-v="log" aria-pressed="true">Log</button>
+          <button data-v="lin" aria-pressed="false">Linear</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="field">
+      <div class="top"><span class="label">Amplitude</span><span class="val" id="vAmp">-10.0 <small>dBFS</small></span></div>
+      <input type="range" id="sAmp" min="-60" max="0" value="-10" step="0.5">
+      <div class="seg" id="ampPresets">
+        <button type="button" data-a="-20">-20</button><button type="button" data-a="-10">-10</button><button type="button" data-a="-6">-6</button><button type="button" data-a="-3">-3</button><button type="button" data-a="0">0</button>
+      </div>
+    </div>
+    <div class="two">
+      <div class="field">
+        <span class="label">Kanal</span>
+        <div class="seg" id="segCh">
+          <button data-v="both" aria-pressed="true">L+R</button>
+          <button data-v="left" aria-pressed="false">L</button>
+          <button data-v="right" aria-pressed="false">R</button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="label">Auto-Stopp nach s (0 = endlos)</span>
+        <input type="number" id="nStop" min="0" max="3600" step="1" value="0" aria-label="Auto-Stopp in Sekunden">
+      </div>
+    </div>
+    <label class="chk"><input type="checkbox" id="cFade" checked> Ein-/Ausblenden 20 ms (verhindert Knackser)</label>
+  </div>
+
+  <button class="big" id="btnPlay">Start</button>
+  <p class="hint">Handy-Lautstärke auf Maximum, Klingelton-Schalter auf laut. Audio-Verbesserungen und Equalizer des Handys ausschalten, sonst stimmt der Pegel nicht.</p>
+</div>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const state={sig:'sine',freq:50,ampDb:-10,ch:'both',swMode:'log'};
+  let ctx=null,nodes=null,timer=null,startT=0,analyser=null,raf=null,wakeLock=null;
+
+  function seg(el,cb){el.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+    [...el.querySelectorAll('button')].forEach(x=>x.setAttribute('aria-pressed',x===b));cb(b.dataset.v);});}
+  const sliderToFreq=v=>Math.round(Math.pow(10,1+(v/1000)*3.342)*10)/10; // 10 Hz .. 22 kHz, logarithmic
+  const freqToSlider=f=>Math.round((Math.log10(Math.max(10,f))-1)/3.342*1000);
+  function fmtF(f){return f>=1000?(f/1000).toFixed(f%1000?2:0)+' <small>kHz</small>':(Math.round(f*10)/10)+' <small>Hz</small>';}
+  function setFreq(f,fromSlider){f=Math.min(22000,Math.max(1,f));state.freq=f;$('vFreq').innerHTML=fmtF(f);
+    if(!fromSlider)$('sFreq').value=freqToSlider(f);$('nFreq').value=Math.round(f*10)/10;
+    if(nodes&&nodes.osc&&state.sig!=='sweep')nodes.osc.frequency.setTargetAtTime(f,ctx.currentTime,0.01);}
+  function setAmp(db){state.ampDb=db;$('vAmp').innerHTML=db.toFixed(1)+' <small>dBFS</small>';$('sAmp').value=db;
+    const lin=Math.pow(10,db/20);$('rLevel').textContent=db.toFixed(1)+' dBFS';$('rLin').textContent=lin.toFixed(3);
+    if(nodes)nodes.gain.gain.setTargetAtTime(lin,ctx.currentTime,0.02);}
+  function setCh(ch){state.ch=ch;if(nodes){const t=ctx.currentTime;
+    nodes.gL.gain.setTargetAtTime(ch==='right'?0:1,t,0.02);nodes.gR.gain.setTargetAtTime(ch==='left'?0:1,t,0.02);}}
+
+  seg($('segSig'),v=>{state.sig=v;const isN=['white','pink','brown'].includes(v);
+    $('fFreq').hidden=isN||v==='sweep';$('fSweep').hidden=v!=='sweep';
+    if(nodes){stop(false);start();}});
+  seg($('segSwM'),v=>{state.swMode=v;if(nodes){stop(false);start();}});
+  seg($('segCh'),setCh);
+  $('sFreq').addEventListener('input',e=>setFreq(sliderToFreq(+e.target.value),true));
+  $('nFreq').addEventListener('change',e=>setFreq(+e.target.value||50));
+  $('presets').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setFreq(+b.dataset.f);});
+  $('sAmp').addEventListener('input',e=>setAmp(+e.target.value));
+  $('ampPresets').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setAmp(+b.dataset.a);});
+  ['nSwA','nSwB','nSwD'].forEach(id=>$(id).addEventListener('change',()=>{if(nodes&&state.sig==='sweep'){stop(false);start();}}));
+
+  function noiseBuffer(kind){const sr=ctx.sampleRate,len=sr*4,buf=ctx.createBuffer(1,len,sr),d=buf.getChannelData(0);
+    let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0,last=0;
+    for(let i=0;i<len;i++){const w=Math.random()*2-1;
+      if(kind==='white'){d[i]=w*0.5;}
+      else if(kind==='pink'){b0=0.99886*b0+w*0.0555179;b1=0.99332*b1+w*0.0750759;b2=0.96900*b2+w*0.1538520;
+        b3=0.86650*b3+w*0.3104856;b4=0.55000*b4+w*0.5329522;b5=-0.7616*b5-w*0.0168980;
+        d[i]=(b0+b1+b2+b3+b4+b5+b6+w*0.5362)*0.11;b6=w*0.115926;}
+      else{last=(last+0.02*w)/1.02;d[i]=last*3.5;}}
+    let pk=0;for(let i=0;i<len;i++)pk=Math.max(pk,Math.abs(d[i]));const g=0.707/(pk||1);for(let i=0;i<len;i++)d[i]*=g;
+    return buf;}
+
+  async function ensureCtx(){if(!ctx){ctx=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'playback'});}
+    if(ctx.state!=='running')await ctx.resume();}
+  function start(){
+    const t=ctx.currentTime,lin=Math.pow(10,state.ampDb/20),fade=$('cFade').checked?0.02:0;
+    const gain=ctx.createGain();gain.gain.setValueAtTime(fade?0:lin,t);if(fade)gain.gain.linearRampToValueAtTime(lin,t+fade);
+    const gL=ctx.createGain(),gR=ctx.createGain(),merger=ctx.createChannelMerger(2);
+    gL.gain.value=state.ch==='right'?0:1;gR.gain.value=state.ch==='left'?0:1;
+    gain.connect(gL);gain.connect(gR);gL.connect(merger,0,0);gR.connect(merger,0,1);
+    analyser=ctx.createAnalyser();analyser.fftSize=2048;merger.connect(analyser);analyser.connect(ctx.destination);
+    let src,osc=null;
+    if(['white','pink','brown'].includes(state.sig)){src=ctx.createBufferSource();src.buffer=noiseBuffer(state.sig);src.loop=true;}
+    else{osc=ctx.createOscillator();src=osc;
+      if(state.sig==='sweep'){osc.type='sine';const a=Math.max(1,+$('nSwA').value||20),b=Math.max(1,+$('nSwB').value||200),d=Math.max(0.5,+$('nSwD').value||10);
+        const f=osc.frequency;for(let i=0;i<400;i++){const t0=t+i*d;f.setValueAtTime(a,t0);
+          if(state.swMode==='log')f.exponentialRampToValueAtTime(b,t0+d);else f.linearRampToValueAtTime(b,t0+d);}}
+      else{osc.type=state.sig;osc.frequency.value=state.freq;}}
+    src.connect(gain);src.start(t);
+    nodes={src,osc,gain,gL,gR,merger};
+    startT=performance.now();$('dot').classList.add('on');$('stateTxt').textContent='läuft';
+    $('btnPlay').textContent='Stopp';$('btnPlay').classList.add('on');
+    const stopAfter=+$('nStop').value||0;clearTimeout(timer);if(stopAfter>0)timer=setTimeout(()=>stop(true),stopAfter*1000);
+    draw();
+    try{navigator.wakeLock&&navigator.wakeLock.request('screen').then(w=>wakeLock=w).catch(()=>{});}catch(e){}
+  }
+  function stop(full){
+    if(!nodes)return;const t=ctx.currentTime,fade=$('cFade').checked?0.02:0,n=nodes;nodes=null;
+    n.gain.gain.cancelScheduledValues(t);n.gain.gain.setValueAtTime(n.gain.gain.value,t);n.gain.gain.linearRampToValueAtTime(0,t+fade);
+    try{n.src.stop(t+fade+0.01);}catch(e){}
+    setTimeout(()=>{try{n.merger.disconnect();}catch(e){}},(fade+0.05)*1000);
+    clearTimeout(timer);
+    if(full){cancelAnimationFrame(raf);$('dot').classList.remove('on');$('stateTxt').textContent='gestoppt';
+      $('btnPlay').textContent='Start';$('btnPlay').classList.remove('on');
+      if(wakeLock){wakeLock.release().catch(()=>{});wakeLock=null;}}
+  }
+  $('btnPlay').addEventListener('click',async()=>{
+    try{await ensureCtx();}catch(e){$('stateTxt').textContent='Audio nicht verfügbar';return;}
+    if(nodes)stop(true);else start();});
+
+  const cv=$('scope'),cx=cv.getContext('2d');const buf=new Float32Array(2048);
+  function draw(){if(!nodes)return;raf=requestAnimationFrame(draw);
+    const W=cv.width,H=cv.height,cs=getComputedStyle(document.documentElement);
+    cx.fillStyle=cs.getPropertyValue('--panel2');cx.fillRect(0,0,W,H);
+    cx.strokeStyle=cs.getPropertyValue('--line');cx.lineWidth=1;cx.beginPath();cx.moveTo(0,H/2);cx.lineTo(W,H/2);cx.stroke();
+    analyser.getFloatTimeDomainData(buf);
+    let s=0;for(let i=1;i<buf.length-W;i++){if(buf[i-1]<0&&buf[i]>=0){s=i;break;}}
+    cx.strokeStyle=cs.getPropertyValue('--accent');cx.lineWidth=2;cx.beginPath();
+    for(let x=0;x<W;x++){const y=H/2-buf[s+x]*(H/2-4);x?cx.lineTo(x,y):cx.moveTo(x,y);}cx.stroke();
+    const sec=Math.floor((performance.now()-startT)/1000);$('rTime').textContent=Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0');}
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&nodes&&!wakeLock){try{navigator.wakeLock&&navigator.wakeLock.request('screen').then(w=>wakeLock=w).catch(()=>{});}catch(e){}}});
+  setFreq(50);setAmp(-10);
+})();
+</script>
+
+</body>
+</html>
